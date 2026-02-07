@@ -3,7 +3,7 @@ import MenuCard from '../components/MenuCard';
 import Cart from '../components/Cart';
 import menuData from '../data/menuData';
 
-function OrderPage() {
+function OrderPage({ onNewOrder }) {
   const [cartItems, setCartItems] = useState([]);
 
   const handleAddToCart = (menu, selectedOptions) => {
@@ -54,6 +54,7 @@ function OrderPage() {
 
   const handleOrder = () => {
     if (cartItems.length === 0) return;
+    onNewOrder(cartItems);
     alert('주문이 완료되었습니다!');
     setCartItems([]);
   };
