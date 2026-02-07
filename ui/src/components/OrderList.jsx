@@ -1,8 +1,6 @@
-function OrderList({ orders, onStatusChange }) {
-  const formatPrice = (price) => {
-    return price.toLocaleString() + '원';
-  };
+import { formatPrice } from '../utils/formatPrice';
 
+function OrderList({ orders, onStatusChange }) {
   const formatTime = (isoString) => {
     const date = new Date(isoString);
     const month = date.getMonth() + 1;

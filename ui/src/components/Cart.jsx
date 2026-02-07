@@ -1,6 +1,12 @@
-function Cart({ cartItems, onOrder }) {
-  const formatPrice = (price) => {
-    return price.toLocaleString() + '원';
+import { formatPrice } from '../utils/formatPrice';
+
+function Cart({ cartItems, onOrder, onRemoveItem }) {
+  const getCartItemKey = (item) => {
+    const optionIds = item.selectedOptions
+      .map((o) => o.id)
+      .sort()
+      .join(',');
+    return `${item.menuId}-${optionIds}`;
   };
 
   const getItemLabel = (item) => {
@@ -18,12 +24,19 @@ function Cart({ cartItems, onOrder }) {
         {cartItems.length === 0 ? (
           <div className="cart__empty">장바구니가 비어 있습니다.</div>
         ) : (
-          cartItems.map((item, index) => (
-            <div key={index} className="cart__item">
+          cartItems.map((item) => (
+            <div key={getCartItemKey(item)} className="cart__item">
               <span className="cart__item-name">{getItemLabel(item)}</span>
               <span className="cart__item-price">
                 {formatPrice(item.totalPrice)}
               </span>
+              <button
+                className="cart__remove-btn"
+                onClick={() => onRemoveItem(item.menuId, item.selectedOptions)}
+                title="삭제"
+              >
+                ✕
+              </button>
             </div>
           ))
         )}

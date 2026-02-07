@@ -8,6 +8,7 @@ import './App.css';
 function App() {
   const [currentPage, setCurrentPage] = useState('order');
   const [orders, setOrders] = useState([]);
+  const [cartItems, setCartItems] = useState([]);
   const [stock, setStock] = useState(
     menuData.map((menu) => ({
       menuId: menu.id,
@@ -16,7 +17,73 @@ function App() {
     }))
   );
 
-  const handleNewOrder = (cartItems) => {
+  const handleAddToCart = (menu, selectedOptions) => {
+    setCartItems((prev) => {
+      const optionKey = selectedOptions
+        .map((o) => o.id)
+        .sort()
+        .join(',');
+
+      const existingIndex = prev.findIndex(
+        (item) =>
+          item.menuId === menu.id &&
+          item.selectedOptions
+            .map((o) => o.id)
+            .sort()
+            .join(',') === optionKey
+      );
+
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        const existing = updated[existingIndex];
+        const unitPrice =
+          existing.basePrice +
+          existing.selectedOptions.reduce((sum, o) => sum + o.price, 0);
+        updated[existingIndex] = {
+          ...existing,
+          quantity: existing.quantity + 1,
+          totalPrice: unitPrice * (existing.quantity + 1),
+        };
+        return updated;
+      }
+
+      const optionsTotal = selectedOptions.reduce(
+        (sum, o) => sum + o.price,
+        0
+      );
+      const newItem = {
+        menuId: menu.id,
+        menuName: menu.name,
+        basePrice: menu.price,
+        selectedOptions,
+        quantity: 1,
+        totalPrice: menu.price + optionsTotal,
+      };
+      return [...prev, newItem];
+    });
+  };
+
+  const handleRemoveItem = (menuId, selectedOptions) => {
+    setCartItems((prev) => {
+      const optionKey = selectedOptions
+        .map((o) => o.id)
+        .sort()
+        .join(',');
+      return prev.filter(
+        (item) =>
+          !(
+            item.menuId === menuId &&
+            item.selectedOptions
+              .map((o) => o.id)
+              .sort()
+              .join(',') === optionKey
+          )
+      );
+    });
+  };
+
+  const handleNewOrder = () => {
+    if (cartItems.length === 0) return;
     const now = new Date();
     const newOrder = {
       id: Date.now(),
@@ -31,6 +98,8 @@ function App() {
       status: '주문 접수',
     };
     setOrders((prev) => [newOrder, ...prev]);
+    alert('주문이 완료되었습니다!');
+    setCartItems([]);
   };
 
   const handleStatusChange = (orderId) => {
@@ -62,7 +131,14 @@ function App() {
   return (
     <>
       <Header currentPage={currentPage} onNavigate={setCurrentPage} />
-      {currentPage === 'order' && <OrderPage onNewOrder={handleNewOrder} />}
+      {currentPage === 'order' && (
+        <OrderPage
+          cartItems={cartItems}
+          onAddToCart={handleAddToCart}
+          onRemoveItem={handleRemoveItem}
+          onOrder={handleNewOrder}
+        />
+      )}
       {currentPage === 'admin' && (
         <AdminPage
           orders={orders}

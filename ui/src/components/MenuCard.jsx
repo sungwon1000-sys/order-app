@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formatPrice } from '../utils/formatPrice';
 
 function MenuCard({ menu, onAddToCart }) {
   const [checkedOptions, setCheckedOptions] = useState({});
@@ -16,10 +17,6 @@ function MenuCard({ menu, onAddToCart }) {
     );
     onAddToCart(menu, selectedOptions);
     setCheckedOptions({});
-  };
-
-  const formatPrice = (price) => {
-    return price.toLocaleString() + '원';
   };
 
   return (
