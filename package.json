@@ -1,0 +1,10 @@
+{
+  "name": "cozy-coffee-order-app",
+  "version": "1.0.0",
+  "description": "COZY 커피 주문 앱",
+  "scripts": {
+    "install:all": "cd ui && npm install && cd ../server && npm install",
+    "build": "cd ui && npm run build",
+    "start": "cd server && node src/index.js"
+  }
+}
