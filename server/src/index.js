@@ -25,7 +25,7 @@ app.get('/api/health', (req, res) => {
 // 프런트엔드 정적 파일 제공 (프로덕션 배포용)
 const distPath = path.join(__dirname, '../../ui/dist');
 app.use(express.static(distPath));
-app.get('*', (req, res) => {
+app.get('{*path}', (req, res) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
