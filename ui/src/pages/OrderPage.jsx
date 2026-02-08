@@ -1,12 +1,11 @@
 import MenuCard from '../components/MenuCard';
 import Cart from '../components/Cart';
-import menuData from '../data/menuData';
 
-function OrderPage({ cartItems, onAddToCart, onRemoveItem, onOrder }) {
+function OrderPage({ menus, cartItems, onAddToCart, onRemoveItem, onOrder }) {
   return (
     <div className="page">
       <div className="menu-list">
-        {menuData.map((menu) => (
+        {menus.map((menu) => (
           <MenuCard key={menu.id} menu={menu} onAddToCart={onAddToCart} />
         ))}
       </div>

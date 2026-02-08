@@ -363,3 +363,398 @@
   completed: number         // 제조 완료
 }
 ```
+
+---
+
+## 7. 백엔드 PRD
+
+### 7.1 개요
+
+프런트엔드에서 사용할 커피 메뉴, 옵션, 주문 데이터를 관리하는 REST API 서버이다.
+Node.js + Express로 구현하며, 데이터베이스는 PostgreSQL을 사용한다.
+
+### 7.2 데이터 모델
+
+#### 7.2.1 ER 다이어그램
+
+```
+┌──────────────┐       ┌──────────────┐
+│    Menus     │       │   Options    │
+├──────────────┤       ├──────────────┤
+│ id (PK)      │──┐    │ id (PK)      │
+│ name         │  │    │ name         │
+│ description  │  │    │ price        │
+│ price        │  └───<│ menu_id (FK) │
+│ image_url    │       └──────────────┘
+│ stock        │
+└──────────────┘
+
+┌──────────────┐       ┌──────────────────┐
+│    Orders    │       │   Order_Items    │
+├──────────────┤       ├──────────────────┤
+│ id (PK)      │──┐    │ id (PK)          │
+│ order_time   │  │    │ order_id (FK)    │
+│ total_price  │  └───<│ menu_id (FK)     │
+│ status       │       │ menu_name        │
+└──────────────┘       │ quantity         │
+                       │ options          │
+                       │ price            │
+                       └──────────────────┘
+```
+
+#### 7.2.2 Menus 테이블
+
+커피 메뉴 정보를 저장한다.
+
+| 컬럼 | 타입 | 제약 조건 | 설명 |
+|------|------|----------|------|
+| id | SERIAL | PRIMARY KEY | 메뉴 고유 ID |
+| name | VARCHAR(100) | NOT NULL | 메뉴 이름 (예: "아메리카노(ICE)") |
+| description | TEXT | | 메뉴 설명 |
+| price | INTEGER | NOT NULL | 가격 (원 단위, 예: 4000) |
+| image_url | VARCHAR(255) | | 이미지 경로 (null이면 플레이스홀더) |
+| stock | INTEGER | NOT NULL, DEFAULT 10 | 재고 수량 |
+
+#### 7.2.3 Options 테이블
+
+메뉴에 연결된 추가 옵션을 저장한다.
+
+| 컬럼 | 타입 | 제약 조건 | 설명 |
+|------|------|----------|------|
+| id | SERIAL | PRIMARY KEY | 옵션 고유 ID |
+| name | VARCHAR(100) | NOT NULL | 옵션 이름 (예: "샷 추가") |
+| price | INTEGER | NOT NULL, DEFAULT 0 | 추가 금액 (원 단위, 예: 500) |
+| menu_id | INTEGER | NOT NULL, REFERENCES Menus(id) | 연결된 메뉴 ID |
+
+#### 7.2.4 Orders 테이블
+
+주문 정보를 저장한다.
+
+| 컬럼 | 타입 | 제약 조건 | 설명 |
+|------|------|----------|------|
+| id | SERIAL | PRIMARY KEY | 주문 고유 ID |
+| order_time | TIMESTAMP | NOT NULL, DEFAULT NOW() | 주문 일시 |
+| total_price | INTEGER | NOT NULL | 주문 총 금액 |
+| status | VARCHAR(20) | NOT NULL, DEFAULT '주문 접수' | 주문 상태 |
+
+- status 허용 값: `'주문 접수'`, `'제조 중'`, `'제조 완료'`
+
+#### 7.2.5 Order_Items 테이블
+
+주문에 포함된 개별 메뉴 항목을 저장한다.
+
+| 컬럼 | 타입 | 제약 조건 | 설명 |
+|------|------|----------|------|
+| id | SERIAL | PRIMARY KEY | 항목 고유 ID |
+| order_id | INTEGER | NOT NULL, REFERENCES Orders(id) | 연결된 주문 ID |
+| menu_id | INTEGER | NOT NULL, REFERENCES Menus(id) | 연결된 메뉴 ID |
+| menu_name | VARCHAR(100) | NOT NULL | 주문 시점의 메뉴 이름 |
+| quantity | INTEGER | NOT NULL | 수량 |
+| options | TEXT | | 선택된 옵션 (JSON 문자열, 예: '["샷 추가"]') |
+| price | INTEGER | NOT NULL | 해당 항목 소계 금액 |
+
+### 7.3 사용자 흐름과 데이터 스키마
+
+#### 7.3.1 주문하기 화면 진입
+
+```
+[브라우저] --GET /api/menus--> [서버] --SELECT--> [Menus + Options]
+                                                        │
+[브라우저] <--메뉴 목록 JSON-- [서버] <--결과 반환----------┘
+```
+
+1. 사용자가 "주문하기" 화면에 진입한다.
+2. 프런트엔드가 `GET /api/menus`를 호출한다.
+3. 서버가 Menus 테이블에서 모든 메뉴를 조회하고, 각 메뉴에 연결된 Options도 함께 조회한다.
+4. 메뉴 목록(이름, 설명, 가격, 이미지, 옵션)을 프런트엔드에 반환한다.
+5. **재고 수량(stock)은 관리자 화면에서만 표시**되며, 주문하기 화면에서는 표시하지 않는다.
+
+#### 7.3.2 장바구니에 담기
+
+- 사용자가 메뉴와 옵션을 선택해 "담기" 버튼을 클릭한다.
+- 선택 정보는 **프런트엔드 상태(state)로만 관리**되며, 이 시점에서는 서버 요청이 발생하지 않는다.
+
+#### 7.3.3 주문 제출
+
+```
+[브라우저] --POST /api/orders--> [서버] --INSERT--> [Orders + Order_Items]
+                                       --UPDATE--> [Menus.stock 차감]
+                                                        │
+[브라우저] <--주문 결과 JSON--- [서버] <--결과 반환---------┘
+```
+
+1. 사용자가 장바구니에서 "주문하기" 버튼을 클릭한다.
+2. 프런트엔드가 `POST /api/orders`를 호출하며, 주문 내용(메뉴, 수량, 옵션, 금액)을 전송한다.
+3. 서버가 다음을 **하나의 트랜잭션** 안에서 수행한다:
+   - Orders 테이블에 주문 레코드를 삽입한다 (주문 시간, 총 금액, 상태='주문 접수').
+   - Order_Items 테이블에 각 주문 항목을 삽입한다.
+   - Menus 테이블의 해당 메뉴 재고(stock)를 주문 수량만큼 차감한다.
+4. 주문 성공 시 생성된 주문 정보를 반환한다.
+
+#### 7.3.4 관리자 화면 - 주문 현황 표시
+
+```
+[관리자 브라우저] --GET /api/orders--> [서버] --SELECT--> [Orders + Order_Items]
+```
+
+1. 관리자가 "관리자" 화면에 진입한다.
+2. 프런트엔드가 `GET /api/orders`를 호출한다.
+3. 서버가 Orders 테이블에서 모든 주문을 조회하고, 각 주문에 포함된 Order_Items도 함께 반환한다.
+4. 주문 목록은 최신 순으로 정렬하여 반환한다.
+
+#### 7.3.5 관리자 화면 - 주문 상태 변경
+
+```
+[관리자 브라우저] --PATCH /api/orders/:id/status--> [서버] --UPDATE--> [Orders.status]
+```
+
+1. 관리자가 주문의 상태 버튼을 클릭한다.
+2. 프런트엔드가 `PATCH /api/orders/:id/status`를 호출하며, 새 상태를 전송한다.
+3. 서버가 해당 주문의 status를 다음 단계로 변경한다: `주문 접수 → 제조 중 → 제조 완료`
+4. 변경된 주문 정보를 반환하고, 대시보드 통계가 갱신된다.
+
+#### 7.3.6 관리자 화면 - 재고 조절
+
+```
+[관리자 브라우저] --PATCH /api/menus/:id/stock--> [서버] --UPDATE--> [Menus.stock]
+```
+
+1. 관리자가 재고 카드의 `+` 또는 `-` 버튼을 클릭한다.
+2. 프런트엔드가 `PATCH /api/menus/:id/stock`을 호출하며, 변경할 수량(delta)을 전송한다.
+3. 서버가 해당 메뉴의 stock을 갱신한다 (0 미만으로 내려가지 않음).
+4. 변경된 메뉴 정보를 반환한다.
+
+### 7.4 API 설계
+
+#### 7.4.1 메뉴 목록 조회
+
+커피 메뉴 목록을 옵션과 함께 조회한다.
+
+```
+GET /api/menus
+```
+
+**응답 (200 OK)**
+```json
+[
+  {
+    "id": 1,
+    "name": "아메리카노(ICE)",
+    "description": "깔끔하고 시원한 아이스 아메리카노",
+    "price": 4000,
+    "imageUrl": "/images/americano-ice.png",
+    "stock": 10,
+    "options": [
+      { "id": 1, "name": "샷 추가", "price": 500 },
+      { "id": 2, "name": "시럽 추가", "price": 0 }
+    ]
+  }
+]
+```
+
+#### 7.4.2 주문 생성
+
+장바구니 내용으로 주문을 생성하고, 해당 메뉴의 재고를 차감한다.
+
+```
+POST /api/orders
+```
+
+**요청 Body**
+```json
+{
+  "items": [
+    {
+      "menuId": 1,
+      "menuName": "아메리카노(ICE)",
+      "quantity": 1,
+      "options": ["샷 추가"],
+      "price": 4500
+    },
+    {
+      "menuId": 2,
+      "menuName": "아메리카노(HOT)",
+      "quantity": 2,
+      "options": [],
+      "price": 8000
+    }
+  ],
+  "totalPrice": 12500
+}
+```
+
+**응답 (201 Created)**
+```json
+{
+  "id": 1,
+  "orderTime": "2026-02-08T13:00:00.000Z",
+  "items": [
+    {
+      "menuId": 1,
+      "menuName": "아메리카노(ICE)",
+      "quantity": 1,
+      "options": ["샷 추가"],
+      "price": 4500
+    }
+  ],
+  "totalPrice": 12500,
+  "status": "주문 접수"
+}
+```
+
+**서버 처리 (트랜잭션)**
+1. Orders 테이블에 INSERT
+2. Order_Items 테이블에 각 항목 INSERT
+3. Menus 테이블에서 주문된 메뉴의 stock을 수량만큼 차감
+
+**에러 응답**
+
+| 상황 | 코드 | 응답 |
+|------|------|------|
+| items가 비어있음 | 400 | `{ "error": "주문 항목이 비어 있습니다." }` |
+| 재고 부족 | 400 | `{ "error": "아메리카노(ICE)의 재고가 부족합니다." }` |
+
+#### 7.4.3 주문 목록 조회
+
+모든 주문을 최신 순으로 조회한다.
+
+```
+GET /api/orders
+```
+
+**응답 (200 OK)**
+```json
+[
+  {
+    "id": 1,
+    "orderTime": "2026-02-08T13:00:00.000Z",
+    "items": [
+      {
+        "menuName": "아메리카노(ICE)",
+        "quantity": 1,
+        "options": ["샷 추가"],
+        "price": 4500
+      }
+    ],
+    "totalPrice": 4500,
+    "status": "주문 접수"
+  }
+]
+```
+
+#### 7.4.4 주문 단건 조회
+
+주문 ID로 특정 주문 정보를 조회한다.
+
+```
+GET /api/orders/:id
+```
+
+**응답 (200 OK)**
+```json
+{
+  "id": 1,
+  "orderTime": "2026-02-08T13:00:00.000Z",
+  "items": [
+    {
+      "menuName": "아메리카노(ICE)",
+      "quantity": 1,
+      "options": ["샷 추가"],
+      "price": 4500
+    }
+  ],
+  "totalPrice": 4500,
+  "status": "주문 접수"
+}
+```
+
+**에러 응답**
+
+| 상황 | 코드 | 응답 |
+|------|------|------|
+| 주문을 찾을 수 없음 | 404 | `{ "error": "해당 주문을 찾을 수 없습니다." }` |
+
+#### 7.4.5 주문 상태 변경
+
+주문의 상태를 다음 단계로 전환한다.
+
+```
+PATCH /api/orders/:id/status
+```
+
+**요청 Body**
+```json
+{
+  "status": "제조 중"
+}
+```
+
+**응답 (200 OK)**
+```json
+{
+  "id": 1,
+  "orderTime": "2026-02-08T13:00:00.000Z",
+  "items": [...],
+  "totalPrice": 4500,
+  "status": "제조 중"
+}
+```
+
+**에러 응답**
+
+| 상황 | 코드 | 응답 |
+|------|------|------|
+| 주문을 찾을 수 없음 | 404 | `{ "error": "해당 주문을 찾을 수 없습니다." }` |
+| 잘못된 상태 전환 | 400 | `{ "error": "잘못된 상태 전환입니다." }` |
+
+**상태 전환 규칙**
+
+| 현재 상태 | 허용되는 다음 상태 |
+|-----------|-----------------|
+| 주문 접수 | 제조 중 |
+| 제조 중 | 제조 완료 |
+| 제조 완료 | (변경 불가) |
+
+#### 7.4.6 재고 수량 변경
+
+특정 메뉴의 재고를 조절한다.
+
+```
+PATCH /api/menus/:id/stock
+```
+
+**요청 Body**
+```json
+{
+  "delta": 1
+}
+```
+
+- `delta`: 증감량 (양수면 증가, 음수면 감소)
+
+**응답 (200 OK)**
+```json
+{
+  "id": 1,
+  "name": "아메리카노(ICE)",
+  "stock": 11
+}
+```
+
+**에러 응답**
+
+| 상황 | 코드 | 응답 |
+|------|------|------|
+| 메뉴를 찾을 수 없음 | 404 | `{ "error": "해당 메뉴를 찾을 수 없습니다." }` |
+| 재고가 0 미만이 됨 | 400 | `{ "error": "재고는 0 미만이 될 수 없습니다." }` |
+
+### 7.5 API 요약
+
+| 메서드 | 엔드포인트 | 설명 | 비고 |
+|--------|-----------|------|------|
+| GET | `/api/menus` | 메뉴 목록 조회 (옵션 포함) | 주문하기 화면 진입 시 호출 |
+| POST | `/api/orders` | 주문 생성 + 재고 차감 | 트랜잭션 처리 |
+| GET | `/api/orders` | 주문 목록 조회 | 관리자 화면 진입 시 호출 |
+| GET | `/api/orders/:id` | 주문 단건 조회 | 주문 ID로 조회 |
+| PATCH | `/api/orders/:id/status` | 주문 상태 변경 | 상태 전환 규칙 적용 |
+| PATCH | `/api/menus/:id/stock` | 재고 수량 변경 | 0 미만 불가 |

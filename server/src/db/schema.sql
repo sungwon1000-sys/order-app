@@ -1,0 +1,38 @@
+-- COZY 커피 주문 앱 데이터베이스 스키마
+
+-- 메뉴 테이블
+CREATE TABLE IF NOT EXISTS menus (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  description TEXT,
+  price INTEGER NOT NULL,
+  image_url VARCHAR(255),
+  stock INTEGER NOT NULL DEFAULT 10
+);
+
+-- 옵션 테이블
+CREATE TABLE IF NOT EXISTS options (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  price INTEGER NOT NULL DEFAULT 0,
+  menu_id INTEGER NOT NULL REFERENCES menus(id) ON DELETE CASCADE
+);
+
+-- 주문 테이블
+CREATE TABLE IF NOT EXISTS orders (
+  id SERIAL PRIMARY KEY,
+  order_time TIMESTAMP NOT NULL DEFAULT NOW(),
+  total_price INTEGER NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT '주문 접수'
+);
+
+-- 주문 항목 테이블
+CREATE TABLE IF NOT EXISTS order_items (
+  id SERIAL PRIMARY KEY,
+  order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  menu_id INTEGER NOT NULL REFERENCES menus(id),
+  menu_name VARCHAR(100) NOT NULL,
+  quantity INTEGER NOT NULL,
+  options TEXT,
+  price INTEGER NOT NULL
+);

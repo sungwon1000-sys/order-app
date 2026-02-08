@@ -23,16 +23,6 @@ function OrderList({ orders, onStatusChange }) {
     }
   };
 
-  const getItemsSummary = (items) => {
-    return items
-      .map((item) => {
-        const optionPart =
-          item.options.length > 0 ? ` (${item.options.join(', ')})` : '';
-        return `${item.menuName}${optionPart} x ${item.quantity}`;
-      })
-      .join(', ');
-  };
-
   return (
     <div className="admin-section">
       <div className="admin-section__title">주문 현황</div>
@@ -43,17 +33,40 @@ function OrderList({ orders, onStatusChange }) {
           orders.map((order) => {
             const btnConfig = getButtonConfig(order.status);
             return (
-              <div key={order.id} className="order-row">
-                <div className="order-row__time">{formatTime(order.orderTime)}</div>
-                <div className="order-row__items">{getItemsSummary(order.items)}</div>
-                <div className="order-row__price">{formatPrice(order.totalPrice)}</div>
-                <button
-                  className={`order-row__btn ${btnConfig.className}`}
-                  disabled={order.status === '제조 완료'}
-                  onClick={() => onStatusChange(order.id)}
-                >
-                  {btnConfig.text}
-                </button>
+              <div key={order.id} className="order-card">
+                <div className="order-card__header">
+                  <span className="order-card__time">
+                    {formatTime(order.orderTime)}
+                  </span>
+                  <span className="order-card__total">
+                    총 {formatPrice(order.totalPrice)}
+                  </span>
+                  <button
+                    className={`order-row__btn ${btnConfig.className}`}
+                    disabled={order.status === '제조 완료'}
+                    onClick={() => onStatusChange(order.id)}
+                  >
+                    {btnConfig.text}
+                  </button>
+                </div>
+                <div className="order-card__items">
+                  {order.items.map((item, idx) => {
+                    const optionPart =
+                      item.options.length > 0
+                        ? ` (${item.options.join(', ')})`
+                        : '';
+                    return (
+                      <div key={idx} className="order-card__item">
+                        <span className="order-card__item-name">
+                          {item.menuName}{optionPart} x {item.quantity}
+                        </span>
+                        <span className="order-card__item-price">
+                          {formatPrice(item.price)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             );
           })

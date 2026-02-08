@@ -420,7 +420,7 @@
 .order-list {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 12px;
 }
 
 .order-list__empty {
@@ -429,38 +429,61 @@
   padding: 12px 0;
 }
 
-.order-row {
+.order-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.order-card__header {
   display: flex;
   align-items: center;
-  gap: 20px;
-  padding: 14px 0;
-  border-bottom: 1px solid #f0f0f0;
+  gap: 16px;
+  margin-bottom: 12px;
 }
 
-.order-row:last-child {
-  border-bottom: none;
-}
-
-.order-row__time {
+.order-card__time {
   font-size: 13px;
   color: #666;
-  min-width: 120px;
   white-space: nowrap;
 }
 
-.order-row__items {
+.order-card__total {
   flex: 1;
   font-size: 14px;
+  font-weight: 700;
+  color: #111;
+  text-align: right;
+}
+
+.order-card__items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.order-card__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  background: #fff;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+}
+
+.order-card__item-name {
+  font-size: 13px;
   color: #333;
 }
 
-.order-row__price {
-  font-size: 14px;
-  font-weight: 600;
-  color: #111;
-  min-width: 80px;
-  text-align: right;
+.order-card__item-price {
+  font-size: 13px;
+  font-weight: 500;
+  color: #555;
   white-space: nowrap;
+  margin-left: 16px;
 }
 
 .order-row__btn {
