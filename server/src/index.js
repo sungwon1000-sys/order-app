@@ -22,12 +22,15 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'COZY 커피 주문 앱 서버가 실행 중입니다.' });
 });
 
-// 프런트엔드 정적 파일 제공 (프로덕션 배포용)
+// 프런트엔드 정적 파일 제공 (ui/dist 폴더가 있을 때만)
+const fs = require('fs');
 const distPath = path.join(__dirname, '../../ui/dist');
-app.use(express.static(distPath));
-app.get('{*path}', (req, res) => {
-  res.sendFile(path.join(distPath, 'index.html'));
-});
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  app.get('{*path}', (req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
 
 // 서버 시작
 app.listen(PORT, () => {
